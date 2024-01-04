@@ -2,7 +2,24 @@
 name = "lib-keccak"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["clabby"]
 
 [dependencies]
+anyhow = "1.0.79"
+tokio = { version = "1.35.1", features = ["full"] }
+rand = "0.8.5"
+indicatif = "0.17.7"
+clap = { version = "4.4.13", features = ["derive"] }
+
+tiny-keccak = "2.0.2"
+revm = { version = "3.5.0", features = ["dev"] }
+alloy-sol-types = "0.5.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[[bin]]
+name = "evm-keccak-fuzz"
+path = "./src/main.rs"

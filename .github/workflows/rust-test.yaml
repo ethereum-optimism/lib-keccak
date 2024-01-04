@@ -1,0 +1,68 @@
+name: Rust CI
+on: [push]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  init:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust nightly toolchain
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - name: install just
+        uses: taiki-e/install-action@just
+      - name: generate testdata
+        run: |
+          just testdata
+      - uses: bissolli/gh-action-persist-workspace@v1
+        with:
+          action: persist
+  cargo-tests:
+    needs: [init]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: bissolli/gh-action-persist-workspace@v1 
+        with:
+          action: retrieve
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: fuzz test
+        run: cargo run --release -- -m 100 -t 4 --diff-count 50000
+  cargo-lint:
+    needs: [init]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: bissolli/gh-action-persist-workspace@v1 
+        with:
+          action: retrieve
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+      - name: cargo clippy
+        run: cargo clippy --workspace --all --locked -- -D warnings
+  cargo-build:
+    needs: [init]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - uses: bissolli/gh-action-persist-workspace@v1 
+        with:
+          action: retrieve
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: build
+        id: build
+        run: cargo build --workspace --all --locked 
