@@ -52,7 +52,7 @@ library LibKeccak {
             // Performs an indivudual rho + pi computation, to be used in the full `thetaRhoPi` chain.
             function rhoPi(ptr, destIdx, srcIdx, fact, dt) {
                 let xs1 := xor(stateElem(ptr, srcIdx), dt)
-                let res := xor(shl64(fact, xs1), shr(sub(64, fact), xs1))
+                let res := xor(shl(fact, xs1), shr(sub(64, fact), xs1))
                 setStateElem(ptr, destIdx, res)
             }
 
@@ -81,7 +81,7 @@ library LibKeccak {
                 let D4 := xor(xor(shl64(1, C0), shr(63, C0)), C3)
 
                 let xs1 := xor(stateElem(ptr, 1), D1)
-                let A1 := xor(shl64(1, xs1), shr(63, xs1))
+                let A1 := xor(shl(1, xs1), shr(63, xs1))
 
                 setStateElem(ptr, 0, xor(stateElem(ptr, 0), D0))
                 rhoPi(ptr, 1, 6, 44, D1)
