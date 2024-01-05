@@ -27,6 +27,29 @@ contract LibKeccak_Test is Test {
         assertEq(LibKeccak.squeeze(state), keccak256(new bytes(200)));
     }
 
+    function test_staticHashModuloBlockSize_success() public {
+        // Init
+        LibKeccak.StateMatrix memory state;
+
+        // Absorb 136 bytes into the sponge
+        bytes memory data = new bytes(136);
+        LibKeccak.absorb(state, data);
+        LibKeccak.permutation(state);
+
+        // Absorb another 136 bytes into the sponge
+        LibKeccak.absorb(state, data);
+        LibKeccak.permutation(state);
+
+        // Absorb the padding into the sponge. Because the input is a perfect multiple of the block size, the padding
+        // will be a full block.
+        data[135] = 0x80;
+        data[0] |= 0x01;
+        LibKeccak.absorb(state, data);
+        LibKeccak.permutation(state);
+
+        assertEq(LibKeccak.squeeze(state), keccak256(new bytes(136 * 2)));
+    }
+
     /// @dev Tests that the stateful sponge can absorb and squeeze an arbitrary amount of random data.
     function testFuzz_statefulSponge_success(bytes memory _data) public {
         vm.pauseGasMetering();

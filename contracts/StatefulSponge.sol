@@ -55,23 +55,36 @@ contract StatefulSponge {
         assembly {
             padded_ := mload(0x40)
 
+            // Grab the original length of `_data`
             let len := _data.length
-            let offset := _data.offset
+
+            let dataPtr := add(padded_, 0x20)
+            let endPtr := add(dataPtr, len)
 
             // Copy the data into memory.
-            calldatacopy(add(padded_, 0x20), offset, len)
+            calldatacopy(dataPtr, _data.offset, len)
 
-            let padStart := mod(len, BLOCK_SIZE_BYTES)
-            if or(padStart, iszero(len)) {
-                let remaining := sub(BLOCK_SIZE_BYTES, padStart)
+            let modBlockSize := mod(len, BLOCK_SIZE_BYTES)
+            switch modBlockSize
+            case false {
+                // If the input is a perfect multiple of the block size, then we add a full extra block of padding.
+                mstore8(endPtr, 0x01)
+                mstore8(sub(add(endPtr, BLOCK_SIZE_BYTES), 0x01), 0x80)
 
-                // Pad the input data
-                let dataPtr := add(padded_, 0x20)
+                // Update the length of the data to include the padding.
+                mstore(padded_, add(len, BLOCK_SIZE_BYTES))
+            }
+            default {
+                // If the input is not a perfect multiple of the block size, then we add a partial block of padding.
+                // This should entail a set bit after the input, followed by as many zero bits as necessary to fill
+                // the block, followed by a single 1 bit in the lowest-order bit of the final block.
+
+                let remaining := sub(BLOCK_SIZE_BYTES, modBlockSize)
                 let newLen := add(len, remaining)
 
                 // Store the padding bits.
-                mstore8(add(dataPtr, len), 0x01)
                 mstore8(add(dataPtr, sub(newLen, 0x01)), 0x80)
+                mstore8(endPtr, or(byte(0, mload(endPtr)), 0x01))
 
                 // Update the length of the data to include the padding. The length should be a multiple of the
                 // block size after this.
