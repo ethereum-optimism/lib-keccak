@@ -6,9 +6,12 @@ pragma solidity 0.8.15;
 /// @author clabby <https://github.com/clabby>
 /// @custom:attribution geohot <https://github.com/geohot>
 library LibKeccak {
+    /// @notice The block size of the Keccak-f[1600] permutation, 1088 bits (136 bytes).
+    uint256 internal constant BLOCK_SIZE_BYTES = 136;
+
     /// @notice The round constants for the keccak256 hash function. Packed in memory for efficient reading during the
     ///         permutation.
-    bytes private constant ROUND_CONSTANTS = abi.encode(
+    bytes internal constant ROUND_CONSTANTS = abi.encode(
         0x00000000000000010000000000008082800000000000808a8000000080008000, // r1,r2,r3,r4
         0x000000000000808b000000008000000180000000800080818000000000008009, // r5,r6,r7,r8
         0x000000000000008a00000000000000880000000080008009000000008000000a, // r9,r10,r11,r12
@@ -17,6 +20,7 @@ library LibKeccak {
         0x8000000080008081800000000000808000000000800000018000000080008008 // r21,r22,r23,r24
     );
 
+    /// @notice A mask for 64-bit values.
     uint64 private constant U64_MASK = 0xFFFFFFFFFFFFFFFF;
 
     /// @notice The 5x5 state matrix for the keccak-f[1600] permutation.
@@ -257,6 +261,53 @@ library LibKeccak {
                     or(shl(192, toLE(stateElem(stateMatrixPtr, 0))), shl(128, toLE(stateElem(stateMatrixPtr, 1)))),
                     or(shl(64, toLE(stateElem(stateMatrixPtr, 2))), toLE(stateElem(stateMatrixPtr, 3)))
                 )
+        }
+    }
+
+    /// @notice Pads input data to an even multiple of the Keccak-f[1600] permutation block size, 1088 bits (136 bytes).
+    /// @dev Can clobber memory after `_data` if `_data` is not already a multiple of 136 bytes.
+    function pad(bytes calldata _data) internal pure returns (bytes memory padded_) {
+        assembly {
+            padded_ := mload(0x40)
+
+            // Grab the original length of `_data`
+            let len := _data.length
+
+            let dataPtr := add(padded_, 0x20)
+            let endPtr := add(dataPtr, len)
+
+            // Copy the data into memory.
+            calldatacopy(dataPtr, _data.offset, len)
+
+            let modBlockSize := mod(len, BLOCK_SIZE_BYTES)
+            switch modBlockSize
+            case false {
+                // If the input is a perfect multiple of the block size, then we add a full extra block of padding.
+                mstore8(endPtr, 0x01)
+                mstore8(sub(add(endPtr, BLOCK_SIZE_BYTES), 0x01), 0x80)
+
+                // Update the length of the data to include the padding.
+                mstore(padded_, add(len, BLOCK_SIZE_BYTES))
+            }
+            default {
+                // If the input is not a perfect multiple of the block size, then we add a partial block of padding.
+                // This should entail a set bit after the input, followed by as many zero bits as necessary to fill
+                // the block, followed by a single 1 bit in the lowest-order bit of the final block.
+
+                let remaining := sub(BLOCK_SIZE_BYTES, modBlockSize)
+                let newLen := add(len, remaining)
+
+                // Store the padding bits.
+                mstore8(add(dataPtr, sub(newLen, 0x01)), 0x80)
+                mstore8(endPtr, or(byte(0, mload(endPtr)), 0x01))
+
+                // Update the length of the data to include the padding. The length should be a multiple of the
+                // block size after this.
+                mstore(padded_, newLen)
+            }
+
+            // Update the free memory pointer.
+            mstore(0x40, add(padded_, and(add(mload(padded_), 0x3F), not(0x1F))))
         }
     }
 }
