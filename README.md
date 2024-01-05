@@ -1,5 +1,8 @@
 # `lib-keccak`
 
+> [!WARNING]
+> These smart contracts have not been audited by cryptography experts. Proceed with caution.
+
 Implementation of the `Keccak-f[1600]` permutation in Solidity.
 
 ## Examples
