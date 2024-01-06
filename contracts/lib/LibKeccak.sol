@@ -60,12 +60,12 @@ library LibKeccak {
                 setStateElem(ptr, destIdx, res)
             }
 
-            // xor five elements within the state matrix
-            function xorFive(ptr, a, b, c, d, e) -> val {
+            // xor a column in the state matrix
+            function xorColumn(ptr, col) -> val {
                 val :=
                     xor(
-                        xor(xor(stateElem(ptr, a), stateElem(ptr, b)), stateElem(ptr, c)),
-                        xor(stateElem(ptr, d), stateElem(ptr, e))
+                        xor(xor(stateElem(ptr, col), stateElem(ptr, add(col, 5))), stateElem(ptr, add(col, 10))),
+                        xor(stateElem(ptr, add(col, 15)), stateElem(ptr, add(col, 20)))
                     )
             }
 
@@ -73,11 +73,11 @@ library LibKeccak {
             // the passed `StateMatrix` struct memory ptr.
             function thetaRhoPi(ptr) {
                 // Theta
-                let C0 := xorFive(ptr, 0, 5, 10, 15, 20)
-                let C1 := xorFive(ptr, 1, 6, 11, 16, 21)
-                let C2 := xorFive(ptr, 2, 7, 12, 17, 22)
-                let C3 := xorFive(ptr, 3, 8, 13, 18, 23)
-                let C4 := xorFive(ptr, 4, 9, 14, 19, 24)
+                let C0 := xorColumn(ptr, 0)
+                let C1 := xorColumn(ptr, 1)
+                let C2 := xorColumn(ptr, 2)
+                let C3 := xorColumn(ptr, 3)
+                let C4 := xorColumn(ptr, 4)
                 let D0 := xor(xor(shl64(1, C1), shr(63, C1)), C4)
                 let D1 := xor(xor(shl64(1, C2), shr(63, C2)), C0)
                 let D2 := xor(xor(shl64(1, C3), shr(63, C3)), C1)
@@ -197,8 +197,7 @@ library LibKeccak {
 
             // Inner sha3 absorb XOR function
             function absorbInner(stateMatrixPtr, inputPtr, idx) {
-                let bo := shl(3, idx)
-                let boWord := mload(add(inputPtr, bo))
+                let boWord := mload(add(inputPtr, shl(3, idx)))
 
                 let res :=
                     or(
@@ -265,7 +264,6 @@ library LibKeccak {
     }
 
     /// @notice Pads input data to an even multiple of the Keccak-f[1600] permutation block size, 1088 bits (136 bytes).
-    /// @dev Can clobber memory after `_data` if `_data` is not already a multiple of 136 bytes.
     function pad(bytes calldata _data) internal pure returns (bytes memory padded_) {
         assembly {
             padded_ := mload(0x40)
