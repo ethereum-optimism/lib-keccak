@@ -87,15 +87,16 @@ async fn fuzz_task(pb: ProgressBar, num_hashes: u64, max_input_bytes: usize) -> 
     // Init thread RNG
     let mut rng = rand::thread_rng();
 
-    // Re-use the same memory for the tiny-keccak hash outputs.
+    // Re-use the same memory for the input slice and tiny-keccak hash outputs.
     let mut hash_tiny: [u8; 32] = [0u8; 32];
+    let mut bytes = vec![0u8; max_input_bytes];
 
     for i in 0..num_hashes {
-        let mut bytes = vec![0u8; rng.gen_range(0..max_input_bytes)];
-        rng.fill(bytes.as_mut_slice());
+        let in_slice = bytes[0..rng.gen_range(0..max_input_bytes)].as_mut();
+        rng.fill(in_slice);
 
-        hash_input_tiny(bytes.as_slice(), hash_tiny.as_mut());
-        let hash_evm = hash_input_evm(&mut evm, bytes.as_slice())?;
+        hash_input_tiny(in_slice, hash_tiny.as_mut());
+        let hash_evm = hash_input_evm(&mut evm, in_slice)?;
 
         if hash_tiny != hash_evm {
             bail!(
