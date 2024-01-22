@@ -310,7 +310,6 @@ library LibKeccak {
     }
 
     /// @notice Pads input data to an even multiple of the Keccak-f[1600] permutation block size, 1088 bits (136 bytes).
-    /// @dev Can clobber memory after `_data` if `_data` is not already a multiple of 136 bytes.
     function padMemory(bytes memory _data) internal pure returns (bytes memory padded_) {
         assembly {
             padded_ := mload(0x40)
