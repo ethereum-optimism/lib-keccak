@@ -180,7 +180,7 @@ library LibKeccak {
     function absorb(StateMatrix memory _stateMatrix, bytes memory _input) internal pure {
         assembly {
             // The input must be 1088 bits long.
-            if iszero(eq(mload(_input), 136)) { revert(0, 0) }
+            if iszero(eq(mload(_input), BLOCK_SIZE_BYTES)) { revert(0, 0) }
 
             let dataPtr := add(_input, 0x20)
             let statePtr := add(_stateMatrix, 0x20)
@@ -283,7 +283,7 @@ library LibKeccak {
                 // Clean the full padding block. It is possible that this memory is dirty, since solidity sometimes does
                 // not update the free memory pointer when allocating memory, for example with external calls. To do
                 // this, we read out-of-bounds from the calldata, which will always return 0 bytes.
-                calldatacopy(endPtr, calldatasize(), 0x88)
+                calldatacopy(endPtr, calldatasize(), BLOCK_SIZE_BYTES)
 
                 // If the input is a perfect multiple of the block size, then we add a full extra block of padding.
                 mstore8(endPtr, 0x01)
@@ -345,7 +345,7 @@ library LibKeccak {
                 // Clean the full padding block. It is possible that this memory is dirty, since solidity sometimes does
                 // not update the free memory pointer when allocating memory, for example with external calls. To do
                 // this, we read out-of-bounds from the calldata, which will always return 0 bytes.
-                calldatacopy(endPtr, calldatasize(), 0x88)
+                calldatacopy(endPtr, calldatasize(), BLOCK_SIZE_BYTES)
 
                 // If the input is a perfect multiple of the block size, then we add a full extra block of padding.
                 mstore8(sub(add(endPtr, BLOCK_SIZE_BYTES), 0x01), 0x80)
