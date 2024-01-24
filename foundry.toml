@@ -4,9 +4,13 @@ out = "out"
 libs = ["lib"]
 optimizer_runs = 10_000_000
 evm_version = "shanghai"
+remappings = [
+  "@solady-test/=lib/solady/test/",
+  "@solady/=lib/solady/src/"
+]
 
 [fmt]
 bracket_spacing = true
 
 [fuzz]
-runs = 512
+runs = 2048
