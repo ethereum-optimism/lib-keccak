@@ -280,6 +280,11 @@ library LibKeccak {
             let modBlockSize := mod(len, BLOCK_SIZE_BYTES)
             switch modBlockSize
             case false {
+                // Clean the full padding block. It is possible that this memory is dirty, since solidity sometimes does
+                // not update the free memory pointer when allocating memory, for example with external calls. To do
+                // this, we read out-of-bounds from the calldata, which will always return 0 bytes.
+                calldatacopy(endPtr, calldatasize(), 0x88)
+
                 // If the input is a perfect multiple of the block size, then we add a full extra block of padding.
                 mstore8(endPtr, 0x01)
                 mstore8(sub(add(endPtr, BLOCK_SIZE_BYTES), 0x01), 0x80)
@@ -294,10 +299,18 @@ library LibKeccak {
 
                 let remaining := sub(BLOCK_SIZE_BYTES, modBlockSize)
                 let newLen := add(len, remaining)
+                let paddedEndPtr := add(dataPtr, newLen)
+
+                // Clean the remainder to ensure that the intermediate data between the padding bits is 0. It is
+                // possible that this memory is dirty, since solidity sometimes does not update the free memory pointer
+                // when allocating memory, for example with external calls. To do this, we read out-of-bounds from the
+                // calldata, which will always return 0 bytes.
+                let partialRemainder := sub(paddedEndPtr, endPtr)
+                calldatacopy(endPtr, calldatasize(), partialRemainder)
 
                 // Store the padding bits.
-                mstore8(add(dataPtr, sub(newLen, 0x01)), 0x80)
-                mstore8(endPtr, or(byte(0, mload(endPtr)), 0x01))
+                mstore8(sub(paddedEndPtr, 0x01), 0x80)
+                mstore8(endPtr, or(byte(0x00, mload(endPtr)), 0x01))
 
                 // Update the length of the data to include the padding. The length should be a multiple of the
                 // block size after this.
@@ -322,16 +335,21 @@ library LibKeccak {
 
             // Copy the data.
             let originalDataPtr := add(_data, 0x20)
-            for { let i := 0 } lt(i, len) { i := add(i, 0x20) } {
+            for { let i := 0x00 } lt(i, len) { i := add(i, 0x20) } {
                 mstore(add(dataPtr, i), mload(add(originalDataPtr, i)))
             }
 
             let modBlockSize := mod(len, BLOCK_SIZE_BYTES)
             switch modBlockSize
             case false {
+                // Clean the full padding block. It is possible that this memory is dirty, since solidity sometimes does
+                // not update the free memory pointer when allocating memory, for example with external calls. To do
+                // this, we read out-of-bounds from the calldata, which will always return 0 bytes.
+                calldatacopy(endPtr, calldatasize(), 0x88)
+
                 // If the input is a perfect multiple of the block size, then we add a full extra block of padding.
-                mstore8(endPtr, 0x01)
                 mstore8(sub(add(endPtr, BLOCK_SIZE_BYTES), 0x01), 0x80)
+                mstore8(endPtr, 0x01)
 
                 // Update the length of the data to include the padding.
                 mstore(padded_, add(len, BLOCK_SIZE_BYTES))
@@ -343,10 +361,18 @@ library LibKeccak {
 
                 let remaining := sub(BLOCK_SIZE_BYTES, modBlockSize)
                 let newLen := add(len, remaining)
+                let paddedEndPtr := add(dataPtr, newLen)
+
+                // Clean the remainder to ensure that the intermediate data between the padding bits is 0. It is
+                // possible that this memory is dirty, since solidity sometimes does not update the free memory pointer
+                // when allocating memory, for example with external calls. To do this, we read out-of-bounds from the
+                // calldata, which will always return 0 bytes.
+                let partialRemainder := sub(paddedEndPtr, endPtr)
+                calldatacopy(endPtr, calldatasize(), partialRemainder)
 
                 // Store the padding bits.
-                mstore8(add(dataPtr, sub(newLen, 0x01)), 0x80)
-                mstore8(endPtr, or(byte(0, mload(endPtr)), 0x01))
+                mstore8(sub(paddedEndPtr, 0x01), 0x80)
+                mstore8(endPtr, or(byte(0x00, mload(endPtr)), 0x01))
 
                 // Update the length of the data to include the padding. The length should be a multiple of the
                 // block size after this.
