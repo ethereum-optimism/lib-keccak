@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.15;
+pragma solidity 0.8.25;
 
 /// @title LibKeccak
 /// @notice An EVM implementation of the Keccak-f[1600] permutation.
