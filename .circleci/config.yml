@@ -20,11 +20,28 @@ commands:
               source "$HOME/.cargo/env"
 
 jobs:
-  cargo-tests:
+  init:
     executor: default
     environment:
       CARGO_TERM_COLOR: always
     steps:
+      - checkout
+      - run:
+          name: Generate testdata
+          command: just testdata
+      # Persist workspace for other jobs
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  cargo-tests:
+    executor: rust
+    environment:
+      CARGO_TERM_COLOR: always
+    steps:
+      - attach_workspace:
+          at: .
       # - restore_cache:
       #     keys:
       #       - rust-cache-v1-{{ checksum "Cargo.lock" }}
@@ -84,4 +101,7 @@ workflows:
 
   rust-test-workflow:
     jobs:
-      - cargo-tests
+      - init
+      - cargo-tests:
+          requires:
+            - init
