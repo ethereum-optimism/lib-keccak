@@ -11,13 +11,51 @@ executors:
     working_directory: ~/project
 
 
+# Define reusable commands
+commands:
+  install_rust_toolchain:
+    steps:
+      - run:
+          name: Install Rust nightly
+          command: |
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+            source "$HOME/.cargo/env"
+
+  install_foundry:
+    steps:
+      - run:
+          name: Install Foundry
+          command: |
+            curl -L https://foundry.paradigm.xyz | bash
+            export PATH="$PATH:/root/.foundry/bin"
+            foundryup --version nightly
+
+  install_just:
+    steps:
+      - run:
+          name: Install just
+          command: |
+            curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+
 jobs:
   init:
-    executor: default
+    docker:
+      - image: cimg/rust:1.75
+        environment:
+          LIBCLANG_PATH: /usr/lib/llvm-14/lib
     environment:
       CARGO_TERM_COLOR: always
     steps:
       - checkout
+      # Install LLVM and Clang
+      - run:
+          name: Install LLVM and Clang
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y llvm-14 libclang-14-dev clang-14
+      - install_rust_toolchain
+      - install_foundry
+      - install_just
       - run:
           name: Generate testdata
           command: just testdata
@@ -26,6 +64,7 @@ jobs:
           root: .
           paths:
             - .
+            
 
   cargo-tests:
     executor: rust
