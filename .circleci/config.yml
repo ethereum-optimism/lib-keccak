@@ -10,8 +10,57 @@ executors:
   default:
     docker:
       - image: us-docker.pkg.dev/oplabs-tools-artifacts/images/ci-builder:v0.47.3
+  rust:
+    docker:
+      - image: cimg/rust:1.75.0 # CircleCI's Rust Docker image
+    working_directory: ~/project
+
+
+commands:
+  install_rust_toolchain:
+    steps:
+      - run:
+          name: Install Rust nightly
+          command: |
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+            source "$HOME/.cargo/env"
+
+  install_foundry:
+    steps:
+      - run:
+          name: Install Foundry
+          command: |
+            curl -L https://foundry.paradigm.xyz | bash
+            export PATH="$PATH:/root/.foundry/bin"
+            foundryup --version nightly
+
+  install_just:
+    steps:
+      - run:
+          name: Install just
+          command: |
+            curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+
 
 jobs:
+  rust-init:
+    executor: rust
+    environment:
+      CARGO_TERM_COLOR: always
+    steps:
+      - checkout
+      - install_rust_toolchain
+      - install_foundry
+      - install_just
+      - run:
+          name: Generate testdata
+          command: just testdata
+      # Persist workspace for other jobs
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
   foundry-check:
     executor: default
     environment:
@@ -33,11 +82,11 @@ jobs:
 
 workflows:
   version: 2
-  foundry-workflow:
+  sol-test-workflow:
     jobs:
       - foundry-check
-      # - foundry-check:
-      #     filters:
-      #       branches:
-      #         only:
-      #           - main
+
+  rust-test-workflow:
+    jobs:
+      - rust-init
+ 
