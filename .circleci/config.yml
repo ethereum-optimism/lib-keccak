@@ -1,38 +1,9 @@
 version: 2.1
 
-
 executors:
   default:
     docker:
       - image: us-docker.pkg.dev/oplabs-tools-artifacts/images/ci-builder:v0.47.3
-
-
-# Define reusable commands
-commands:
-  install_rust_toolchain:
-    steps:
-      - run:
-          name: Install Rust nightly
-          command: |
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
-            source "$HOME/.cargo/env"
-
-  install_foundry:
-    steps:
-      - run:
-          name: Install Foundry
-          command: |
-            curl -L https://foundry.paradigm.xyz | bash
-            echo 'export PATH="$PATH:/home/circleci/.foundry/bin"' >> $BASH_ENV
-            source $BASH_ENV
-            foundryup --version nightly
-
-  install_just:
-    steps:
-      - run:
-          name: Install just
-          command: |
-            curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
 
 jobs:
   init:
@@ -44,18 +15,17 @@ jobs:
       - run:
           name: Generate testdata
           command: just testdata
-      # Persist workspace for other jobs
       - persist_to_workspace:
           root: .
           paths:
             - .
-            
 
   cargo-tests:
     docker:
       - image: cimg/rust:1.75
     environment:
       CARGO_TERM_COLOR: always
+      LIBCLANG_PATH: /usr/lib/llvm-14/lib
     steps:
       - attach_workspace:
           at: .
@@ -63,6 +33,12 @@ jobs:
           keys:
             - rust-cache-v1-{{ checksum "Cargo.lock" }}
             - rust-cache-v1-
+      # Install required dependencies
+      - run:
+          name: Install Dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y llvm-14 libclang-14-dev clang-14 pkg-config libssl-dev
       - run:
           name: Run fuzz tests
           command: cargo run --release -- -m 100 -t 4 --diff-count 50000
@@ -82,7 +58,6 @@ jobs:
           paths:
             - ~/.cargo
             - target
-  
 
   foundry-check:
     executor: default
@@ -90,14 +65,10 @@ jobs:
       FOUNDRY_PROFILE: ci
     steps:
       - checkout
-
-      # Check formatting
       - run:
           name: Check formatting
           command: |
             forge fmt --check
-
-      # Run Forge tests (equivalent to the GitHub Action's forge test step)
       - run:
           name: Run Forge tests
           command: |
@@ -105,7 +76,6 @@ jobs:
 
 workflows:
   version: 2
-
   sol-test-workflow:
     jobs:
       - foundry-check
