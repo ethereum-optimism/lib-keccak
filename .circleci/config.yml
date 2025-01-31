@@ -36,23 +36,11 @@ commands:
 
 jobs:
   init:
-    docker:
-      - image: cimg/rust:1.75
-        environment:
-          LIBCLANG_PATH: /usr/lib/llvm-14/lib
+    executor: default
     environment:
       CARGO_TERM_COLOR: always
     steps:
       - checkout
-      # Install LLVM and Clang
-      - run:
-          name: Install LLVM and Clang
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y llvm-14 libclang-14-dev clang-14
-      - install_rust_toolchain
-      - install_foundry
-      - install_just
       - run:
           name: Generate testdata
           command: just testdata
