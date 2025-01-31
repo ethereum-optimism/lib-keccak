@@ -76,4 +76,6 @@ workflows:
   rust-test-workflow:
     jobs:
       - rust-init
-      - cargo-tests
+      - cargo-tests: 
+         requires:
+           - rust-init
