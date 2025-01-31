@@ -10,14 +10,6 @@ executors:
       - image: cimg/rust:1.75.0 # CircleCI's Rust Docker image
     working_directory: ~/project
 
-commands:
-    install_rust_toolchain:
-      steps:
-        - run:
-            name: Install Rust nightly
-            command: |
-              curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
-              source "$HOME/.cargo/env"
 
 jobs:
   init:
@@ -46,11 +38,6 @@ jobs:
       #     keys:
       #       - rust-cache-v1-{{ checksum "Cargo.lock" }}
       #       - rust-cache-v1-
-      - install_rust_toolchain
-      - checkout
-      - run:
-          name: Generate testdata
-          command: just testdata
       - run:
           name: Run fuzz tests
           command: cargo run --release -- -m 100 -t 4 --diff-count 50000
