@@ -39,7 +39,7 @@ commands:
 
 jobs:
   rust-init:
-    executor: rust
+    executor: default
     environment:
       CARGO_TERM_COLOR: always
     steps:
@@ -77,7 +77,7 @@ jobs:
 
 workflows:
   version: 2
-  
+
   sol-test-workflow:
     jobs:
       - foundry-check
