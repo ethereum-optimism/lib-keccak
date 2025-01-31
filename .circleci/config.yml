@@ -5,10 +5,6 @@ executors:
   default:
     docker:
       - image: us-docker.pkg.dev/oplabs-tools-artifacts/images/ci-builder:v0.47.3
-  rust:
-    docker:
-      - image: cimg/rust:1.75.0 # CircleCI's Rust Docker image
-    working_directory: ~/project
 
 
 # Define reusable commands
@@ -27,7 +23,8 @@ commands:
           name: Install Foundry
           command: |
             curl -L https://foundry.paradigm.xyz | bash
-            export PATH="$PATH:/root/.foundry/bin"
+            echo 'export PATH="$PATH:/home/circleci/.foundry/bin"' >> $BASH_ENV
+            source $BASH_ENV
             foundryup --version nightly
 
   install_just:
@@ -67,16 +64,17 @@ jobs:
             
 
   cargo-tests:
-    executor: rust
+    docker:
+      - image: cimg/rust:1.75
     environment:
       CARGO_TERM_COLOR: always
     steps:
       - attach_workspace:
           at: .
-      # - restore_cache:
-      #     keys:
-      #       - rust-cache-v1-{{ checksum "Cargo.lock" }}
-      #       - rust-cache-v1-
+      - restore_cache:
+          keys:
+            - rust-cache-v1-{{ checksum "Cargo.lock" }}
+            - rust-cache-v1-
       - run:
           name: Run fuzz tests
           command: cargo run --release -- -m 100 -t 4 --diff-count 50000
@@ -91,12 +89,11 @@ jobs:
           name: Build project
           command: cargo build --workspace --all --locked
           no_output_timeout: 20m
-
-      # - save_cache:
-      #     key: rust-cache-v1-{{ checksum "Cargo.lock" }}
-      #     paths:
-      #       - ~/.cargo
-      #       - target
+      - save_cache:
+          key: rust-cache-v1-{{ checksum "Cargo.lock" }}
+          paths:
+            - ~/.cargo
+            - target
   
 
   foundry-check:
