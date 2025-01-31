@@ -12,20 +12,6 @@ executors:
 
 
 jobs:
-  rust-init:
-    executor: default
-    environment:
-      CARGO_TERM_COLOR: always
-    steps:
-      - checkout
-      - run:
-          name: Generate testdata
-          command: just testdata
-      # Persist workspace for other jobs
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
   cargo-tests:
     executor: default
     environment:
@@ -37,9 +23,57 @@ jobs:
           keys:
             - rust-cache-v1-{{ checksum "Cargo.lock" }}
             - rust-cache-v1-
+      - checkout
+      - run:
+          name: Generate testdata
+          command: just testdata
       - run:
           name: Run fuzz tests
           command: cargo run --release -- -m 100 -t 4 --diff-count 50000
+          no_output_timeout: 20m
+      - save_cache:
+          key: rust-cache-v1-{{ checksum "Cargo.lock" }}
+          paths:
+            - ~/.cargo
+            - target
+  
+  cargo-lint:
+    executor: default
+    environment:
+      CARGO_TERM_COLOR: always
+    steps:
+      - attach_workspace:
+          at: .
+      - restore_cache:
+          keys:
+            - rust-cache-v1-{{ checksum "Cargo.lock" }}
+            - rust-cache-v1-
+      - run:
+          name: Check formatting
+          command: cargo fmt --all -- --check
+      - run:
+          name: Run clippy
+          command: cargo clippy --workspace --all --locked -- -D warnings
+      - save_cache:
+          key: rust-cache-v1-{{ checksum "Cargo.lock" }}
+          paths:
+            - ~/.cargo
+            - target
+
+  cargo-build:
+    executor: default
+    environment:
+      CARGO_TERM_COLOR: always
+    steps:
+      - attach_workspace:
+          at: .
+      - restore_cache:
+          keys:
+            - rust-cache-v1-{{ checksum "Cargo.lock" }}
+            - rust-cache-v1-
+      - run:
+          name: Build project
+          command: cargo build --workspace --all --locked
           no_output_timeout: 20m
       - save_cache:
           key: rust-cache-v1-{{ checksum "Cargo.lock" }}
@@ -75,7 +109,4 @@ workflows:
 
   rust-test-workflow:
     jobs:
-      - rust-init
-      - cargo-tests: 
-         requires:
-           - rust-init
+      - cargo-tests
