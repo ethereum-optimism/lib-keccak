@@ -44,21 +44,25 @@ jobs:
     steps:
       - attach_workspace:
           at: .
-      - restore_cache:
-          keys:
-            - rust-cache-v1-{{ checksum "Cargo.lock" }}
-            - rust-cache-v1-
+      # - restore_cache:
+      #     keys:
+      #       - rust-cache-v1-{{ checksum "Cargo.lock" }}
+      #       - rust-cache-v1-
       - run:
           name: Check formatting
           command: cargo fmt --all -- --check
       - run:
           name: Run clippy
           command: cargo clippy --workspace --all --locked -- -D warnings
-      - save_cache:
-          key: rust-cache-v1-{{ checksum "Cargo.lock" }}
-          paths:
-            - ~/.cargo
-            - target
+      - run:
+          name: Build project
+          command: cargo build --workspace --all --locked
+          no_output_timeout: 20m
+      # - save_cache:
+      #     key: rust-cache-v1-{{ checksum "Cargo.lock" }}
+      #     paths:
+      #       - ~/.cargo
+      #       - target
 
   cargo-build:
     executor: default
