@@ -44,9 +44,6 @@ jobs:
       CARGO_TERM_COLOR: always
     steps:
       - checkout
-      - install_rust_toolchain
-      - install_foundry
-      - install_just
       - run:
           name: Generate testdata
           command: just testdata
