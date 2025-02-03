@@ -1,0 +1,88 @@
+version: 2.1
+
+executors:
+  default:
+    docker:
+      - image: us-docker.pkg.dev/oplabs-tools-artifacts/images/ci-builder:v0.47.3
+
+jobs:
+  init:
+    executor: default
+    environment:
+      CARGO_TERM_COLOR: always
+    steps:
+      - checkout
+      - run:
+          name: Generate testdata
+          command: just testdata
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  cargo-tests:
+    docker:
+      - image: cimg/rust:1.75
+    environment:
+      CARGO_TERM_COLOR: always
+      LIBCLANG_PATH: /usr/lib/llvm-14/lib
+    steps:
+      - attach_workspace:
+          at: .
+      - restore_cache:
+          keys:
+            - rust-cache-v1-{{ checksum "Cargo.lock" }}
+            - rust-cache-v1-
+      # Install required dependencies
+      - run:
+          name: Install Dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y llvm-14 libclang-14-dev clang-14 pkg-config libssl-dev
+      - run:
+          name: Run fuzz tests
+          command: cargo run --release -- -m 100 -t 4 --diff-count 50000
+          no_output_timeout: 20m
+      - run:
+          name: Check formatting
+          command: cargo fmt --all -- --check
+      - run:
+          name: Run clippy
+          command: cargo clippy --workspace --all --locked -- -D warnings
+      - run:
+          name: Build project
+          command: cargo build --workspace --all --locked
+          no_output_timeout: 20m
+      - save_cache:
+          key: rust-cache-v1-{{ checksum "Cargo.lock" }}
+          paths:
+            - ~/.cargo
+            - target
+
+  foundry-check:
+    executor: default
+    environment:
+      FOUNDRY_PROFILE: ci
+    steps:
+      - checkout
+      - run:
+          name: Check formatting
+          command: |
+            forge fmt --check
+      - run:
+          name: Run Forge tests
+          command: |
+            forge test -vvv
+
+workflows:
+  version: 2
+  sol-test-workflow:
+    jobs:
+      - foundry-check
+
+  rust-test-workflow:
+    jobs:
+      - init
+      - cargo-tests:
+          requires:
+            - init
